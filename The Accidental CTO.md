@@ -1,5 +1,5 @@
 
-![Book Cover ](https://github.com/user-attachments/assets/8f527042-fd7e-43bb-ac63-8c179fe19f28)
+![Book Cover ](https://raw.githubusercontent.com/subhashchy/The-Accidental-CTO/refs/heads/main/web/public/cover.png)
 
 
 
