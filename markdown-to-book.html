@@ -1,0 +1,1466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Codex — Premium Book Reader</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fraunces:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <style>
+        :root {
+            --bg-primary: #09090b;
+            --bg-secondary: #18181b;
+            --bg-tertiary: #27272a;
+            --surface: #fafafa;
+            --surface-dim: #f4f4f5;
+            --text-primary: #09090b;
+            --text-secondary: #52525b;
+            --text-muted: #a1a1aa;
+            --accent: #6366f1;
+            --accent-light: #818cf8;
+            --accent-glow: rgba(99, 102, 241, 0.5);
+            --border: rgba(255, 255, 255, 0.1);
+            --glass: rgba(255, 255, 255, 0.03);
+            --glass-border: rgba(255, 255, 255, 0.08);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: white;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Animated Background */
+        .bg-gradient {
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse 80% 50% at 50% -20%, rgba(99, 102, 241, 0.15), transparent),
+                radial-gradient(ellipse 60% 40% at 100% 100%, rgba(139, 92, 246, 0.1), transparent),
+                radial-gradient(ellipse 40% 30% at 0% 100%, rgba(59, 130, 246, 0.08), transparent);
+            pointer-events: none;
+        }
+
+        .noise {
+            position: fixed;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+            opacity: 0.02;
+            pointer-events: none;
+        }
+
+        /* Floating Orbs */
+        .orb {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        .orb-1 {
+            width: 400px;
+            height: 400px;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            top: -100px;
+            right: -100px;
+        }
+
+        .orb-2 {
+            width: 300px;
+            height: 300px;
+            background: linear-gradient(135deg, #3b82f6, #6366f1);
+            bottom: -50px;
+            left: -50px;
+        }
+
+        /* Screens */
+        .screen {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            transition: opacity 0.4s ease, visibility 0.4s ease;
+            z-index: 1;
+        }
+
+        .screen.active {
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+            z-index: 10;
+        }
+
+        .upload-screen {
+            padding: 2rem;
+        }
+
+        .logo {
+            font-family: 'Fraunces', serif;
+            font-size: 3.5rem;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+            background: linear-gradient(135deg, #fff 0%, #a1a1aa 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+
+        .tagline {
+            font-size: 1rem;
+            color: var(--text-muted);
+            margin-bottom: 3rem;
+            font-weight: 400;
+        }
+
+        .upload-zone {
+            width: min(480px, 90vw);
+            height: 280px;
+            border: 1px dashed var(--glass-border);
+            border-radius: 24px;
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .upload-zone::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at 50% 50%, var(--accent-glow), transparent 70%);
+            opacity: 0;
+            transition: opacity 0.4s;
+        }
+
+        .upload-zone:hover {
+            border-color: var(--accent);
+            transform: translateY(-4px);
+            box-shadow: 0 20px 40px -20px var(--accent-glow);
+        }
+
+        .upload-zone:hover::before {
+            opacity: 0.1;
+        }
+
+        .upload-zone.dragover {
+            border-color: var(--accent);
+            background: rgba(99, 102, 241, 0.1);
+            transform: scale(1.02);
+        }
+
+        .upload-icon {
+            width: 64px;
+            height: 64px;
+            border-radius: 16px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-light));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 8px 32px -8px var(--accent-glow);
+        }
+
+        .upload-icon svg {
+            width: 28px;
+            height: 28px;
+            stroke: white;
+            stroke-width: 2;
+            fill: none;
+        }
+
+        .upload-text {
+            font-size: 1rem;
+            color: white;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+
+        .upload-hint {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        /* Cover Screen */
+        .cover-screen {
+            background: var(--bg-primary);
+            z-index: 5;
+        }
+
+        .cover-screen.active {
+            z-index: 10;
+        }
+
+        .cover-container {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+        }
+
+        .cover-image-wrapper {
+            position: relative;
+            max-width: 500px;
+            width: 90%;
+        }
+
+        .cover-image {
+            width: 100%;
+            height: auto;
+            border-radius: 8px;
+            box-shadow:
+                0 50px 100px -20px rgba(0, 0, 0, 0.5),
+                0 30px 60px -30px rgba(99, 102, 241, 0.3);
+        }
+
+        .cover-glow {
+            position: absolute;
+            inset: -20%;
+            background: radial-gradient(circle, var(--accent-glow), transparent 70%);
+            filter: blur(60px);
+            opacity: 0.4;
+            z-index: -1;
+        }
+
+        .start-btn {
+            position: absolute;
+            bottom: 15%;
+            left: 50%;
+            transform: translateX(-50%);
+            font-family: 'Inter', sans-serif;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: white;
+            background: linear-gradient(135deg, var(--accent), #8b5cf6);
+            border: none;
+            padding: 1rem 2.5rem;
+            border-radius: 100px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            box-shadow: 0 8px 32px -8px var(--accent-glow);
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        .start-btn:hover {
+            transform: translateX(-50%) translateY(-2px) scale(1.02);
+            box-shadow: 0 12px 40px -8px var(--accent-glow);
+        }
+
+        .start-btn svg {
+            width: 18px;
+            height: 18px;
+            stroke: currentColor;
+            stroke-width: 2;
+            fill: none;
+        }
+
+        /* Reader Screen */
+        .reader-screen {
+            padding: 1rem;
+            background: var(--bg-primary);
+            align-items: stretch;
+            justify-content: flex-start;
+        }
+
+        .reader-screen.active {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .reader-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.5rem 1rem;
+            flex-shrink: 0;
+        }
+
+        .book-title {
+            font-family: 'Fraunces', serif;
+            font-size: 1rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .icon-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            border: 1px solid var(--glass-border);
+            background: var(--glass);
+            backdrop-filter: blur(10px);
+            color: var(--text-muted);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .icon-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border-color: var(--accent);
+        }
+
+        .icon-btn svg {
+            width: 18px;
+            height: 18px;
+            stroke: currentColor;
+            stroke-width: 2;
+            fill: none;
+        }
+
+        /* Book Container */
+        .book-wrapper {
+            flex: 1 1 auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem 2rem;
+            perspective: 2000px;
+            min-height: 400px;
+            height: 0; /* Needed for flex child to respect parent height */
+        }
+
+        .book {
+            position: relative;
+            width: 100%;
+            max-width: 1400px;
+            height: 100%;
+            max-height: 100%;
+            display: flex;
+            transform-style: preserve-3d;
+            transform: rotateX(2deg);
+            overflow: hidden;
+        }
+
+        .page {
+            flex: 1 1 50%;
+            background: #fafafa;
+            border-radius: 4px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4);
+            max-height: 100%;
+        }
+
+        .page-left {
+            border-radius: 4px 0 0 4px;
+            border-right: 1px solid var(--surface-dim);
+        }
+
+        .page-right {
+            border-radius: 0 4px 4px 0;
+        }
+
+        /* Page inner shadow for realism */
+        .page::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .page-left::before {
+            background: linear-gradient(to right, transparent 90%, rgba(0,0,0,0.03));
+        }
+
+        .page-right::before {
+            background: linear-gradient(to left, transparent 90%, rgba(0,0,0,0.05));
+        }
+
+        .page-content {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            padding: 2.5rem;
+            padding-bottom: 3.5rem;
+            overflow: hidden;
+        }
+
+        .page-content::-webkit-scrollbar {
+            display: none;
+        }
+
+        .page-content > *:first-child {
+            margin-top: 0;
+        }
+
+        .page-content > *:last-child {
+            margin-bottom: 0;
+        }
+
+        /* Typography */
+        .page-content h1 {
+            font-family: 'Fraunces', serif;
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 1.25rem;
+            line-height: 1.35;
+            text-align: left;
+        }
+
+        .page-content h2 {
+            font-family: 'Fraunces', serif;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin: 1.5rem 0 0.75rem;
+            padding-top: 0.5rem;
+            border-top: 1px solid var(--surface-dim);
+        }
+
+        .page-content h3 {
+            font-family: 'Inter', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin: 1.25rem 0 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .page-content p {
+            font-family: 'Inter', sans-serif;
+            font-size: 0.9rem;
+            line-height: 1.8;
+            color: var(--text-primary);
+            margin-bottom: 1rem;
+            text-align: left;
+        }
+
+        .page-content ul, .page-content ol {
+            margin: 1rem 0 1rem 1.5rem;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.875rem;
+            line-height: 1.75;
+            color: var(--text-primary);
+        }
+
+        .page-content li {
+            margin-bottom: 0.5rem;
+        }
+
+        .page-content blockquote {
+            margin: 1.25rem 0;
+            padding: 1rem 1.5rem;
+            border-left: 3px solid var(--accent);
+            background: var(--surface-dim);
+            border-radius: 0 8px 8px 0;
+            font-style: italic;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .page-content code {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            background: var(--surface-dim);
+            padding: 0.2em 0.5em;
+            border-radius: 4px;
+        }
+
+        .page-content pre {
+            background: #1e1e2e;
+            color: #cdd6f4;
+            padding: 1.25rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 1.25rem 0;
+            font-size: 0.8rem;
+        }
+
+        .page-content pre code {
+            background: none;
+            padding: 0;
+            color: inherit;
+        }
+
+        .page-content strong {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .page-content em {
+            font-style: italic;
+        }
+
+        .page-content a {
+            color: inherit;
+            text-decoration: underline;
+            text-decoration-color: rgba(0, 0, 0, 0.2);
+            text-underline-offset: 3px;
+            transition: all 0.2s ease;
+        }
+
+        .page-content a:hover {
+            text-decoration-color: var(--accent);
+            background: linear-gradient(to top, rgba(99, 102, 241, 0.1) 0%, rgba(99, 102, 241, 0.1) 30%, transparent 30%);
+        }
+
+        .page-number {
+            position: absolute;
+            bottom: 1.5rem;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .page-left .page-number {
+            left: 2.5rem;
+        }
+
+        .page-right .page-number {
+            right: 2.5rem;
+        }
+
+        /* Navigation */
+        .nav-btn {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            border: 1px solid var(--glass-border);
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            z-index: 100;
+        }
+
+        .nav-btn:hover:not(:disabled) {
+            background: var(--accent);
+            border-color: var(--accent);
+            transform: translateY(-50%) scale(1.1);
+            box-shadow: 0 8px 32px -8px var(--accent-glow);
+        }
+
+        .nav-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .nav-btn svg {
+            width: 24px;
+            height: 24px;
+            stroke: currentColor;
+            stroke-width: 2;
+            fill: none;
+        }
+
+        .nav-prev {
+            left: -28px;
+        }
+
+        .nav-next {
+            right: -28px;
+        }
+
+        /* Progress Bar */
+        .progress-container {
+            flex-shrink: 0;
+            padding: 1rem 2rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .progress-bar {
+            flex: 1;
+            height: 4px;
+            background: var(--bg-tertiary);
+            border-radius: 2px;
+            overflow: hidden;
+            cursor: pointer;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent), var(--accent-light));
+            border-radius: 2px;
+            transition: width 0.3s ease;
+        }
+
+        .progress-text {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            font-weight: 500;
+            min-width: 100px;
+            text-align: right;
+        }
+
+        /* Flip Page Element */
+        .flip-page {
+            position: absolute;
+            top: 0;
+            width: 50%;
+            height: 100%;
+            transform-style: preserve-3d;
+            z-index: 50;
+            pointer-events: none;
+        }
+
+        .flip-page.right {
+            right: 0;
+            transform-origin: left center;
+        }
+
+        .flip-page.left {
+            left: 0;
+            transform-origin: right center;
+        }
+
+        .flip-front, .flip-back {
+            position: absolute;
+            inset: 0;
+            backface-visibility: hidden;
+            background: var(--surface);
+            overflow: hidden;
+        }
+
+        .flip-back {
+            transform: rotateY(180deg);
+        }
+
+        .flip-page.right .flip-front {
+            border-radius: 0 4px 4px 0;
+        }
+
+        .flip-page.right .flip-back {
+            border-radius: 4px 0 0 4px;
+        }
+
+        .flip-page.left .flip-front {
+            border-radius: 4px 0 0 4px;
+        }
+
+        .flip-page.left .flip-back {
+            border-radius: 0 4px 4px 0;
+        }
+
+        /* TOC Modal */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(8px);
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal {
+            background: var(--bg-secondary);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            width: 100%;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow: hidden;
+            transform: scale(0.95) translateY(20px);
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .modal-overlay.active .modal {
+            transform: scale(1) translateY(0);
+        }
+
+        .modal-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--glass-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .modal-title {
+            font-family: 'Fraunces', serif;
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            border: none;
+            background: var(--glass);
+            color: var(--text-muted);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .modal-close:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        .toc-list {
+            list-style: none;
+            padding: 1rem;
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+
+        .toc-item {
+            padding: 1rem;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 0.25rem;
+        }
+
+        .toc-item:hover {
+            background: var(--glass);
+        }
+
+        .toc-item-title {
+            font-size: 0.95rem;
+            color: white;
+        }
+
+        .toc-item-page {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            background: var(--bg-tertiary);
+            padding: 0.25rem 0.75rem;
+            border-radius: 100px;
+        }
+
+        /* Keyboard shortcuts */
+        kbd {
+            display: inline-block;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            background: var(--bg-tertiary);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            padding: 0.25rem 0.5rem;
+            min-width: 1.5rem;
+            text-align: center;
+            box-shadow: 0 2px 0 rgba(0, 0, 0, 0.2);
+        }
+
+        .shortcuts-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            border: 1px solid var(--glass-border);
+            background: var(--glass);
+            backdrop-filter: blur(10px);
+            color: var(--text-muted);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            font-size: 1.1rem;
+        }
+
+        .shortcuts-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border-color: var(--accent);
+        }
+
+        .shortcuts-modal .modal {
+            max-width: 400px;
+        }
+
+        .shortcuts-list {
+            padding: 1rem;
+        }
+
+        .shortcut-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .shortcut-item:last-child {
+            border-bottom: none;
+        }
+
+        .shortcut-label {
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .shortcut-keys {
+            display: flex;
+            gap: 0.35rem;
+            align-items: center;
+        }
+
+        .shortcut-keys span {
+            color: var(--text-muted);
+            font-size: 0.75rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 900px) {
+            .book {
+                transform: rotateX(0);
+            }
+
+            .nav-btn {
+                width: 44px;
+                height: 44px;
+            }
+
+            .nav-prev {
+                left: -10px;
+            }
+
+            .nav-next {
+                right: -10px;
+            }
+
+            .page-content {
+                padding: 1.5rem;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .book {
+                flex-direction: column;
+            }
+
+            .page {
+                border-radius: 8px;
+            }
+
+            .page-left, .page-right {
+                border-radius: 8px;
+                border: none;
+            }
+
+            .nav-btn {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-gradient"></div>
+    <div class="noise"></div>
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+
+    <!-- Upload Screen -->
+    <div class="screen upload-screen active" id="uploadScreen">
+        <h1 class="logo">Codex</h1>
+        <p class="tagline">Transform markdown into beautiful books</p>
+
+        <div class="upload-zone" id="uploadZone">
+            <div class="upload-icon">
+                <svg viewBox="0 0 24 24">
+                    <path d="M12 5v14M5 12h14" stroke-linecap="round"/>
+                </svg>
+            </div>
+            <p class="upload-text">Drop your markdown file here</p>
+            <p class="upload-hint">or click to browse</p>
+        </div>
+
+        <input type="file" id="fileInput" accept=".md,.markdown,.txt">
+    </div>
+
+    <!-- Cover Screen -->
+    <div class="screen cover-screen" id="coverScreen">
+        <div class="cover-container">
+            <div class="cover-image-wrapper">
+                <div class="cover-glow"></div>
+                <img src="cover.png" alt="Book Cover" class="cover-image" id="coverImage">
+            </div>
+            <button class="start-btn" id="startBtn">
+                Start Reading
+                <svg viewBox="0 0 24 24">
+                    <path d="M5 12h14M12 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- Reader Screen -->
+    <div class="screen reader-screen" id="readerScreen">
+        <header class="reader-header">
+            <h1 class="book-title" id="bookTitle">Book Title</h1>
+            <div class="header-actions">
+                <button class="shortcuts-btn" id="shortcutsBtn" title="Keyboard Shortcuts">?</button>
+                <button class="icon-btn" id="tocBtn" title="Contents">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M4 6h16M4 12h16M4 18h16" stroke-linecap="round"/>
+                    </svg>
+                </button>
+                <button class="icon-btn" id="backBtn" title="New Book">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M6 18L18 6M6 6l12 12" stroke-linecap="round"/>
+                    </svg>
+                </button>
+            </div>
+        </header>
+
+        <div class="book-wrapper">
+            <div class="book" id="book">
+                <button class="nav-btn nav-prev" id="prevBtn">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+
+                <div class="page page-left">
+                    <div class="page-content" id="leftPage"></div>
+                    <span class="page-number" id="leftNum"></span>
+                </div>
+                <div class="page page-right">
+                    <div class="page-content" id="rightPage"></div>
+                    <span class="page-number" id="rightNum"></span>
+                </div>
+
+                <button class="nav-btn nav-next" id="nextBtn">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M9 18l6-6-6-6" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <div class="progress-container">
+            <div class="progress-bar" id="progressBar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <span class="progress-text" id="progressText">Page 1 of 1</span>
+        </div>
+    </div>
+
+    <!-- TOC Modal -->
+    <div class="modal-overlay" id="tocModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 class="modal-title">Contents</h2>
+                <button class="modal-close" id="tocClose">
+                    <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none">
+                        <path d="M6 18L18 6M6 6l12 12" stroke-linecap="round"/>
+                    </svg>
+                </button>
+            </div>
+            <ul class="toc-list" id="tocList"></ul>
+        </div>
+    </div>
+
+    <!-- Shortcuts Modal -->
+    <div class="modal-overlay shortcuts-modal" id="shortcutsModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 class="modal-title">Keyboard Shortcuts</h2>
+                <button class="modal-close" id="shortcutsClose">
+                    <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none">
+                        <path d="M6 18L18 6M6 6l12 12" stroke-linecap="round"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="shortcuts-list">
+                <div class="shortcut-item">
+                    <span class="shortcut-label">Next page</span>
+                    <div class="shortcut-keys"><kbd>→</kbd> <span>or</span> <kbd>PgDn</kbd></div>
+                </div>
+                <div class="shortcut-item">
+                    <span class="shortcut-label">Previous page</span>
+                    <div class="shortcut-keys"><kbd>←</kbd> <span>or</span> <kbd>PgUp</kbd></div>
+                </div>
+                <div class="shortcut-item">
+                    <span class="shortcut-label">First page</span>
+                    <div class="shortcut-keys"><kbd>Home</kbd></div>
+                </div>
+                <div class="shortcut-item">
+                    <span class="shortcut-label">Last page</span>
+                    <div class="shortcut-keys"><kbd>End</kbd></div>
+                </div>
+                <div class="shortcut-item">
+                    <span class="shortcut-label">Table of contents</span>
+                    <div class="shortcut-keys"><kbd>T</kbd> <span>or</span> <kbd>C</kbd></div>
+                </div>
+                <div class="shortcut-item">
+                    <span class="shortcut-label">Close modal</span>
+                    <div class="shortcut-keys"><kbd>Esc</kbd></div>
+                </div>
+                <div class="shortcut-item">
+                    <span class="shortcut-label">New book</span>
+                    <div class="shortcut-keys"><kbd>B</kbd></div>
+                </div>
+                <div class="shortcut-item">
+                    <span class="shortcut-label">Show shortcuts</span>
+                    <div class="shortcut-keys"><kbd>?</kbd></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State
+        let pages = [];
+        let currentSpread = 0;
+        let toc = [];
+        let isFlipping = false;
+
+        // Elements
+        const uploadScreen = document.getElementById('uploadScreen');
+        const coverScreen = document.getElementById('coverScreen');
+        const readerScreen = document.getElementById('readerScreen');
+        const uploadZone = document.getElementById('uploadZone');
+        const fileInput = document.getElementById('fileInput');
+        const startBtn = document.getElementById('startBtn');
+        const book = document.getElementById('book');
+        const leftPage = document.getElementById('leftPage');
+        const rightPage = document.getElementById('rightPage');
+        const leftNum = document.getElementById('leftNum');
+        const rightNum = document.getElementById('rightNum');
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        const progressFill = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
+        const progressBar = document.getElementById('progressBar');
+        const bookTitle = document.getElementById('bookTitle');
+        const tocBtn = document.getElementById('tocBtn');
+        const tocModal = document.getElementById('tocModal');
+        const tocClose = document.getElementById('tocClose');
+        const tocList = document.getElementById('tocList');
+        const backBtn = document.getElementById('backBtn');
+        const shortcutsBtn = document.getElementById('shortcutsBtn');
+        const shortcutsModal = document.getElementById('shortcutsModal');
+        const shortcutsClose = document.getElementById('shortcutsClose');
+
+        // Marked config
+        marked.setOptions({ breaks: true, gfm: true });
+
+        // Animate orbs (with safety check)
+        if (typeof gsap !== 'undefined') {
+            gsap.to('.orb-1', {
+                x: 50, y: 30, duration: 8, repeat: -1, yoyo: true, ease: 'sine.inOut'
+            });
+            gsap.to('.orb-2', {
+                x: -30, y: -20, duration: 6, repeat: -1, yoyo: true, ease: 'sine.inOut'
+            });
+        }
+
+        // File handling
+        uploadZone.addEventListener('click', () => fileInput.click());
+
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('dragover');
+        });
+
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('dragover');
+        });
+
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            if (e.dataTransfer.files[0]) processFile(e.dataTransfer.files[0]);
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files[0]) processFile(e.target.files[0]);
+        });
+
+        function processFile(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                parseMarkdown(e.target.result, file.name);
+                showScreen(coverScreen);
+            };
+            reader.readAsText(file);
+        }
+
+        function parseMarkdown(md, filename) {
+            const titleMatch = md.match(/^#\s+(.+)$/m);
+            bookTitle.textContent = titleMatch ? titleMatch[1] : filename.replace(/\.(md|markdown|txt)$/i, '');
+
+            const html = marked.parse(md);
+            const temp = document.createElement('div');
+            temp.innerHTML = html;
+
+            pages = [];
+            toc = [];
+
+            let currentContent = [];
+            let wordCount = 0;
+            const wordsPerPage = 240;
+
+            Array.from(temp.children).forEach(el => {
+                const words = el.textContent.split(/\s+/).length;
+
+                if (['H1', 'H2'].includes(el.tagName)) {
+                    toc.push({ title: el.textContent, level: el.tagName === 'H1' ? 1 : 2, page: pages.length + 1 });
+                }
+
+                const isHeader = ['H1', 'H2'].includes(el.tagName);
+                const overflow = wordCount + words > wordsPerPage;
+
+                if ((isHeader && wordCount > 150) || (overflow && wordCount > 200)) {
+                    if (currentContent.length) {
+                        const page = document.createElement('div');
+                        currentContent.forEach(c => page.appendChild(c.cloneNode(true)));
+                        pages.push(page.innerHTML);
+                        currentContent = [];
+                        wordCount = 0;
+                    }
+                }
+
+                currentContent.push(el.cloneNode(true));
+                wordCount += words;
+            });
+
+            if (currentContent.length) {
+                const page = document.createElement('div');
+                currentContent.forEach(c => page.appendChild(c.cloneNode(true)));
+                pages.push(page.innerHTML);
+            }
+
+            if (pages.length === 0) pages.push('<p>Empty document</p>');
+            if (pages.length % 2 === 1) pages.push('');
+
+            buildTOC();
+            currentSpread = 0;
+            renderSpread();
+        }
+
+        function buildTOC() {
+            tocList.innerHTML = '';
+            toc.forEach(item => {
+                const li = document.createElement('li');
+                li.className = 'toc-item';
+                li.style.paddingLeft = item.level === 2 ? '2rem' : '1rem';
+                li.innerHTML = `
+                    <span class="toc-item-title">${item.title}</span>
+                    <span class="toc-item-page">${item.page}</span>
+                `;
+                li.addEventListener('click', () => {
+                    currentSpread = Math.floor((item.page - 1) / 2);
+                    renderSpread();
+                    closeTOC();
+                });
+                tocList.appendChild(li);
+            });
+        }
+
+        function renderSpread() {
+            const left = currentSpread * 2;
+            const right = left + 1;
+
+            leftPage.innerHTML = pages[left] || '';
+            rightPage.innerHTML = pages[right] || '';
+            leftNum.textContent = pages[left] ? left + 1 : '';
+            rightNum.textContent = pages[right] ? right + 1 : '';
+
+            const totalSpreads = Math.ceil(pages.length / 2);
+            const progress = ((currentSpread + 1) / totalSpreads) * 100;
+            progressFill.style.width = `${progress}%`;
+            progressText.textContent = `Pages ${left + 1}–${Math.min(right + 1, pages.length)} of ${pages.length}`;
+
+            prevBtn.disabled = currentSpread === 0;
+            nextBtn.disabled = currentSpread >= totalSpreads - 1;
+        }
+
+        function flipNext() {
+            const totalSpreads = Math.ceil(pages.length / 2);
+            if (currentSpread >= totalSpreads - 1 || isFlipping) return;
+
+            isFlipping = true;
+
+            // Create flip element
+            const flip = document.createElement('div');
+            flip.className = 'flip-page right';
+
+            const front = document.createElement('div');
+            front.className = 'flip-front';
+            front.innerHTML = `<div class="page-content" style="padding: 2.5rem;">${pages[currentSpread * 2 + 1] || ''}</div>`;
+
+            const back = document.createElement('div');
+            back.className = 'flip-back';
+            back.innerHTML = `<div class="page-content" style="padding: 2.5rem;">${pages[(currentSpread + 1) * 2] || ''}</div>`;
+
+            flip.appendChild(front);
+            flip.appendChild(back);
+            book.appendChild(flip);
+
+            // Hide real page
+            rightPage.parentElement.style.visibility = 'hidden';
+
+            // GSAP animation
+            if (typeof gsap !== 'undefined') {
+                gsap.to(flip, {
+                    rotateY: -180,
+                    duration: 0.6,
+                    ease: 'power2.inOut',
+                    onComplete: () => {
+                        currentSpread++;
+                        renderSpread();
+                        flip.remove();
+                        rightPage.parentElement.style.visibility = 'visible';
+                        isFlipping = false;
+                    }
+                });
+            } else {
+                currentSpread++;
+                renderSpread();
+                flip.remove();
+                rightPage.parentElement.style.visibility = 'visible';
+                isFlipping = false;
+            }
+        }
+
+        function flipPrev() {
+            if (currentSpread <= 0 || isFlipping) return;
+
+            isFlipping = true;
+
+            const flip = document.createElement('div');
+            flip.className = 'flip-page left';
+
+            const front = document.createElement('div');
+            front.className = 'flip-front';
+            front.innerHTML = `<div class="page-content" style="padding: 2.5rem;">${pages[currentSpread * 2] || ''}</div>`;
+
+            const back = document.createElement('div');
+            back.className = 'flip-back';
+            back.innerHTML = `<div class="page-content" style="padding: 2.5rem;">${pages[(currentSpread - 1) * 2 + 1] || ''}</div>`;
+
+            flip.appendChild(front);
+            flip.appendChild(back);
+            book.appendChild(flip);
+
+            leftPage.parentElement.style.visibility = 'hidden';
+
+            if (typeof gsap !== 'undefined') {
+                gsap.to(flip, {
+                    rotateY: 180,
+                    duration: 0.6,
+                    ease: 'power2.inOut',
+                    onComplete: () => {
+                        currentSpread--;
+                        renderSpread();
+                        flip.remove();
+                        leftPage.parentElement.style.visibility = 'visible';
+                        isFlipping = false;
+                    }
+                });
+            } else {
+                currentSpread--;
+                renderSpread();
+                flip.remove();
+                leftPage.parentElement.style.visibility = 'visible';
+                isFlipping = false;
+            }
+        }
+
+        function showScreen(screen) {
+            [uploadScreen, coverScreen, readerScreen].forEach(s => s.classList.remove('active'));
+            screen.classList.add('active');
+
+            if (typeof gsap !== 'undefined') {
+                gsap.fromTo(screen,
+                    { opacity: 0 },
+                    { opacity: 1, duration: 0.5 }
+                );
+            }
+        }
+
+        function openTOC() {
+            tocModal.classList.add('active');
+        }
+
+        function closeTOC() {
+            tocModal.classList.remove('active');
+        }
+
+        function openShortcuts() {
+            shortcutsModal.classList.add('active');
+        }
+
+        function closeShortcuts() {
+            shortcutsModal.classList.remove('active');
+        }
+
+        // Event listeners
+        startBtn.addEventListener('click', () => showScreen(readerScreen));
+        prevBtn.addEventListener('click', flipPrev);
+        nextBtn.addEventListener('click', flipNext);
+        tocBtn.addEventListener('click', openTOC);
+        tocClose.addEventListener('click', closeTOC);
+        tocModal.addEventListener('click', (e) => { if (e.target === tocModal) closeTOC(); });
+        shortcutsBtn.addEventListener('click', openShortcuts);
+        shortcutsClose.addEventListener('click', closeShortcuts);
+        shortcutsModal.addEventListener('click', (e) => { if (e.target === shortcutsModal) closeShortcuts(); });
+        backBtn.addEventListener('click', () => {
+            showScreen(uploadScreen);
+            fileInput.value = '';
+        });
+
+        // Progress bar click
+        progressBar.addEventListener('click', (e) => {
+            const rect = progressBar.getBoundingClientRect();
+            const percent = (e.clientX - rect.left) / rect.width;
+            const totalSpreads = Math.ceil(pages.length / 2);
+            currentSpread = Math.floor(percent * totalSpreads);
+            currentSpread = Math.max(0, Math.min(currentSpread, totalSpreads - 1));
+            renderSpread();
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            // Cover screen
+            if (coverScreen.classList.contains('active') && (e.key === 'Enter' || e.key === ' ')) {
+                e.preventDefault();
+                showScreen(readerScreen);
+                return;
+            }
+
+            if (!readerScreen.classList.contains('active')) return;
+
+            // Don't trigger shortcuts when modal is open (except Escape)
+            const tocOpen = tocModal.classList.contains('active');
+            const shortcutsOpen = shortcutsModal.classList.contains('active');
+            const modalOpen = tocOpen || shortcutsOpen;
+
+            switch(e.key) {
+                case 'ArrowRight':
+                case 'PageDown':
+                    if (!modalOpen) flipNext();
+                    break;
+                case 'ArrowLeft':
+                case 'PageUp':
+                    if (!modalOpen) flipPrev();
+                    break;
+                case 'Home':
+                    if (!modalOpen) {
+                        currentSpread = 0;
+                        renderSpread();
+                    }
+                    break;
+                case 'End':
+                    if (!modalOpen) {
+                        currentSpread = Math.ceil(pages.length / 2) - 1;
+                        renderSpread();
+                    }
+                    break;
+                case 't':
+                case 'c':
+                    if (!modalOpen) openTOC();
+                    else if (tocOpen) closeTOC();
+                    break;
+                case 'Escape':
+                    if (tocOpen) closeTOC();
+                    if (shortcutsOpen) closeShortcuts();
+                    break;
+                case 'b':
+                    if (!modalOpen) {
+                        showScreen(uploadScreen);
+                        fileInput.value = '';
+                    }
+                    break;
+                case '?':
+                    if (!modalOpen) openShortcuts();
+                    else if (shortcutsOpen) closeShortcuts();
+                    break;
+            }
+        });
+
+        // Touch swipe
+        let touchStartX = 0;
+        book.addEventListener('touchstart', (e) => {
+            touchStartX = e.touches[0].clientX;
+        }, { passive: true });
+
+        book.addEventListener('touchend', (e) => {
+            const diff = touchStartX - e.changedTouches[0].clientX;
+            if (Math.abs(diff) > 50) {
+                if (diff > 0) flipNext();
+                else flipPrev();
+            }
+        }, { passive: true });
+
+        // Entrance animation
+        if (typeof gsap !== 'undefined') {
+            gsap.from('.logo', { y: 30, opacity: 0, duration: 0.8, delay: 0.2 });
+            gsap.from('.tagline', { y: 20, opacity: 0, duration: 0.8, delay: 0.4 });
+            gsap.from('.upload-zone', { y: 30, opacity: 0, duration: 0.8, delay: 0.6 });
+        }
+    </script>
+</body>
+</html>
