@@ -16,7 +16,7 @@ const slugify = (text: string) => {
 export const BookContent = ({ content }: BookContentProps) => {
   return (
     <div className="h-full">
-      <article className="max-w-[80vw] mx-auto pl-4 md:px-8 py-8">
+      <article className="max-w-5xl mx-auto px-4 sm:px-8 py-8">
         <div className="markdown-content">
           <Markdown>
             {content}

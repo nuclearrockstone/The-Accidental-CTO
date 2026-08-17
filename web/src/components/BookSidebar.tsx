@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Edit, Menu, Pen, X } from "lucide-react";
+import { Menu, PanelLeftClose, PanelLeftOpen, Pen, X } from "lucide-react";
 import { Button } from "./ui/button";
 import { ScrollArea } from "./ui/scroll-area";
 import { ThemeToggle } from "./ThemeToggle";
@@ -18,6 +18,7 @@ interface BookSidebarProps {
 
 export const BookSidebar = ({ chapters, activeChapter }: BookSidebarProps) => {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
 
   const SidebarContent = () => (
     <div className="flex flex-col h-screen bg-background border-r border-sidebar-border">
@@ -31,6 +32,15 @@ export const BookSidebar = ({ chapters, activeChapter }: BookSidebarProps) => {
           </div>
           <div className="flex items-center gap-1">
             <ThemeToggle />
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setCollapsed((prev) => !prev)}
+              className="hidden lg:inline-flex hover:bg-sidebar-accent"
+              aria-label="Collapse sidebar"
+            >
+              <PanelLeftClose className="w-4 h-4" />
+            </Button>
             <a
               href="https://github.com/hitesh-c/The-Accidental-CTO/blob/main/The%20Accidental%20CTO.md"
               target="_blank"
@@ -116,10 +126,24 @@ export const BookSidebar = ({ chapters, activeChapter }: BookSidebarProps) => {
         <SidebarContent />
       </div>
 
-      {/* Desktop Sidebar (always expanded, not collapsible) */}
+      {/* Desktop Expand Button (shown when collapsed) */}
+      {collapsed && (
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setCollapsed(false)}
+          className="fixed top-4 left-4 z-40 hidden lg:inline-flex bg-card shadow-lg hover:shadow-accent"
+          aria-label="Expand sidebar"
+        >
+          <PanelLeftOpen className="h-5 w-5" />
+        </Button>
+      )}
+
+      {/* Desktop Sidebar (collapsible) */}
       <div
         className={cn(
-          "hidden lg:block sticky top-0 h-screen w-80 transition-all duration-300"
+          "hidden lg:block sticky top-0 h-screen overflow-hidden transition-all duration-300",
+          collapsed ? "w-0" : "w-80"
         )}
       >
         <SidebarContent />

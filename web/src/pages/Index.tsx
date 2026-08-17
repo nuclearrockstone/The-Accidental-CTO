@@ -77,7 +77,7 @@ const Index = () => {
         chapters={chapters}
         activeChapter={activeChapter}
       />
-      <main className="top-20">
+      <main className="flex-1 min-w-0">
         <BookContent content={content} />
       </main>
       
